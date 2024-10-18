@@ -6,12 +6,12 @@ import struct
 from typing import Callable, Any, List
 
 from .protocol import Packet, CommandCode
+from .protocol.command import to_uint16_bytes, to_uint8_bytes
 from .protocol.command.module_setup import ModuleSetup, ModuleSetupFlags, populate_module_setup_args
 from .protocol.rx_handler import RxHandler
 from .transport.serial import SerialPort
 
 logger = logging.getLogger(__name__)
-
 
 
 class NurAPY:
@@ -113,5 +113,16 @@ class NurAPY:
             combined_module_setup_flags |= setup_flag.value
         args = populate_module_setup_args(combined_module_setup_flags, module_setup)
         packet = Packet(command_code=CommandCode.GET_MODULE_SETUP, args=args)
+        response = self._execute_command(packet)
+        return response
+
+    def simple_inventory(self, q=None, session=None, rounds=None):
+        args = []
+        if q is not None and session is not None:
+            args.append(q)
+            args.append(session)
+            if rounds is not None:
+                args.append(to_uint8_bytes(rounds))
+        packet = Packet(command_code=CommandCode.SIMPLE_INVENTORY, args=args)
         response = self._execute_command(packet)
         return response

@@ -17,6 +17,7 @@ class CommandCode(Enum):
     GET_DEVICE_CAPABILITIES = 0xB
     RESTART = 0x14
     GET_MODULE_SETUP = 0x22
+    SIMPLE_INVENTORY = 0x31
 
 
 def extract_bytes(payload: bytearray, number_of_bytes: int) -> bytearray:
