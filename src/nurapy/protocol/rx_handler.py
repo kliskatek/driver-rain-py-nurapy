@@ -7,6 +7,7 @@ from . import Packet
 from .command.get_device_capabilities import parse_get_device_capabilities_response
 from .command.get_mode import parse_get_mode_response
 from .command import HeaderFlagCodes
+from .command.module_setup import parse_module_setup_response
 from .command.get_reader_info import parse_get_reader_info_response
 from .. import CommandCode
 
@@ -98,6 +99,9 @@ class RxHandler:
             return
         if command is CommandCode.GET_DEVICE_CAPABILITIES:
             self.response_queue.put(parse_get_device_capabilities_response(payload))
+            return
+        if command is CommandCode.GET_MODULE_SETUP:
+            self.response_queue.put(parse_module_setup_response(payload))
             return
 
     def _process_notification(self, command: CommandCode, payload: bytearray):

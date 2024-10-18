@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from dataclasses_json import dataclass_json
 
-from src.nurapy.protocol.command import extract_bytes, extract_string, extrac_uint8
+from src.nurapy.protocol.command import extract_bytes, extract_string, extract_uint8
 
 
 @dataclass_json
@@ -39,8 +39,8 @@ def parse_get_reader_info_response(payload: bytearray):
     reader_info.fcc_id = extract_string(payload)
     reader_info.hw_version = extract_string(payload)
     reader_info.sw_version = extract_sw_version(payload)
-    reader_info.num_sensors = extrac_uint8(payload)
-    reader_info.num_regions = extrac_uint8(payload)
-    reader_info.num_antennas = extrac_uint8(payload)
-    reader_info.max_antennas = extrac_uint8(payload)
+    reader_info.num_sensors = extract_uint8(payload)
+    reader_info.num_regions = extract_uint8(payload)
+    reader_info.num_antennas = extract_uint8(payload)
+    reader_info.max_antennas = extract_uint8(payload)
     return reader_info

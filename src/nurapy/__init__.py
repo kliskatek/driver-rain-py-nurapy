@@ -1,17 +1,17 @@
 # SPDX-FileCopyrightText: 2024-present Iz2k <ibon@zalbide.com>
 #
 # SPDX-License-Identifier: MIT
-import inspect
 import logging
-import time
-from threading import Thread
-from typing import Callable, Any
+import struct
+from typing import Callable, Any, List
 
 from .protocol import Packet, CommandCode
+from .protocol.command.module_setup import ModuleSetup, ModuleSetupFlags, populate_module_setup_args
 from .protocol.rx_handler import RxHandler
 from .transport.serial import SerialPort
 
 logger = logging.getLogger(__name__)
+
 
 
 class NurAPY:
@@ -84,5 +84,22 @@ class NurAPY:
 
     def get_device_capabilities(self):
         packet = Packet(command_code=CommandCode.GET_DEVICE_CAPABILITIES, args=[])
+        response = self._execute_command(packet)
+        return response
+
+    def get_module_setup(self, setup_flags: List[ModuleSetupFlags]):
+        combined_module_setup_flags = 0
+        for setup_flag in setup_flags:
+            combined_module_setup_flags |= setup_flag.value
+        packet = Packet(command_code=CommandCode.GET_MODULE_SETUP, args=[struct.pack('I', combined_module_setup_flags)])
+        response = self._execute_command(packet)
+        return response
+
+    def set_module_setup(self, setup_flags: List[ModuleSetupFlags], module_setup: ModuleSetup):
+        combined_module_setup_flags = 0
+        for setup_flag in setup_flags:
+            combined_module_setup_flags |= setup_flag.value
+        args = populate_module_setup_args(combined_module_setup_flags, module_setup)
+        packet = Packet(command_code=CommandCode.GET_MODULE_SETUP, args=args)
         response = self._execute_command(packet)
         return response
