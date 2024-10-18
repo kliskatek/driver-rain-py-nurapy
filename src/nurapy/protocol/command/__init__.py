@@ -15,6 +15,7 @@ class CommandCode(Enum):
     CLEAR_ID_BUFFER = 5
     GET_READER_INFO = 9
     GET_DEVICE_CAPABILITIES = 0xB
+    RESTART = 0x14
     GET_MODULE_SETUP = 0x22
 
 

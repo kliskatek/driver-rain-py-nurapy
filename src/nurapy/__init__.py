@@ -19,13 +19,16 @@ class NurAPY:
     def __init__(self, connection_string=None):
         self.transport = None
         self._rx_handler = RxHandler()
+        self.connection_string = connection_string
         if connection_string is not None:
             self.connect(connection_string)
 
     def set_notification_callback(self, notification_callback: Callable[[Any], None]):
         self._rx_handler.set_notification_callback(notification_callback)
 
-    def connect(self, connection_string) -> bool:
+    def connect(self, connection_string=None) -> bool:
+        if connection_string:
+            self.connection_string = connection_string
         # TODO: Parse connection string to determine transport type
         self.transport = SerialPort(read_callback=self._rx_handler.append_data)
         return self.transport.connect(connection_string)
@@ -49,8 +52,12 @@ class NurAPY:
 
     def _execute_command(self, command_packet: Packet):
         if not self.transport.is_connected():
-            logger.info('Transport is disconnected.')
-            return None
+            if self.connection_string is None:
+                logger.info('Transport is disconnected.')
+                return None
+            if not self.transport.connect(self.connection_string):
+                logger.info('Transport is disconnected.')
+                return None
 
         logger.info('TX -> ' + command_packet.get_command_code().name)
         self.transport.write(command_packet.bytes())
@@ -69,6 +76,11 @@ class NurAPY:
 
     def reset(self):
         packet = Packet(command_code=CommandCode.RESET, args=[])
+        response = self._execute_command(packet)
+        return response
+
+    def restart(self):
+        packet = Packet(command_code=CommandCode.RESTART, args=[])
         response = self._execute_command(packet)
         return response
 

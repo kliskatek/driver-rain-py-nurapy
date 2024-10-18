@@ -2,11 +2,14 @@ import logging
 import time
 
 from src.nurapy import NurAPY, ModuleSetupFlags, ModuleSetup
-from src.nurapy.protocol.command.def_module_setup import ModuleSetupLinkFreq, ModuleSetupRxDec
+from src.nurapy.protocol.command.module_setup import ModuleSetupLinkFreq, ModuleSetupRxDec
 
 logging.basicConfig(level=logging.DEBUG)
 
 api = NurAPY('COM8')
+api.restart()
+time.sleep(4)
+#api = NurAPY('COM8')
 api.ping()
 api.get_mode()
 reader_info = api.get_reader_info()

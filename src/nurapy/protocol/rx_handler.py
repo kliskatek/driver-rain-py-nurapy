@@ -91,6 +91,9 @@ class RxHandler:
         if command is CommandCode.RESET:
             self.response_queue.put(True)
             return
+        if command is CommandCode.RESTART:
+            self.response_queue.put(True)
+            return
         if command is CommandCode.GET_MODE:
             self.response_queue.put(parse_get_mode_response(payload))
             return
