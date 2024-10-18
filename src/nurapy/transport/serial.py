@@ -30,7 +30,7 @@ class SerialPort:
             self.serial.port = port
             self.serial.open()
             logger.info('SerialPort successfully connected.')
-            self._rx_thread = Thread(target=self._rx_thread, daemon=True, name='RxThread')
+            self._rx_thread = Thread(target=self._rx_thread_fxn, daemon=True, name='RxThread')
             self._rx_thread_run = True
             self._rx_thread.start()
             return True
@@ -58,6 +58,7 @@ class SerialPort:
 
     def write(self, data: bytes):
         self.serial.write(data)
+        logger.debug('TX >> ' + data.hex(sep=' ').upper())
 
     def set_read_callback(self, callback):
         self.read_callback = callback
@@ -72,13 +73,12 @@ class SerialPort:
             logger.info('SerialPort disconnected.')
             self.serial.close()
 
-    def _rx_thread(self):
+    def _rx_thread_fxn(self):
         while self._rx_thread_run:
             if self.is_connected():
                 data = self._read()
                 if data is not None:
                     if len(data) > 0:
-                        logger.debug('RX << ' + str(data.hex(sep=' ').upper()))
                         if self.read_callback:
                             self.read_callback(data)
             time.sleep(0.001)

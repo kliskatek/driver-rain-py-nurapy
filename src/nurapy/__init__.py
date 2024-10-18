@@ -47,24 +47,22 @@ class NurAPY:
             logger.warning(e)
             return False
 
-    def _execute_command(self, command_packet: Packet, name: str):
+    def _execute_command(self, command_packet: Packet):
         if not self.transport.is_connected():
             logger.info('Transport is disconnected.')
             return None
 
-        logger.info('TX -> ' + name)
+        logger.info('TX -> ' + command_packet.get_command_code().name)
         self.transport.write(command_packet.bytes())
-        logger.debug('TX >> ' + str(command_packet))
         try:
             response = self._rx_handler.get_response()
             logger.info('RX <- ' + str(response))
             return response
         except TimeoutError:
-            logger.info('Timeout executing ' + name)
+            logger.info('Timeout executing ' + command_packet.get_command_code().name)
             return None
 
     def ping(self):
-        packet = Packet(command_code=CommandCode.PING)
-        response = self._execute_command(packet,
-                                         inspect.currentframe().f_code.co_name)
+        packet = Packet(command_code=CommandCode.PING, args=[0x01, 0x00, 0x00, 0x00])
+        response = self._execute_command(packet)
         return response

@@ -26,7 +26,8 @@ classifiers = [
 ]
 dependencies = [
   'pyserial',
-  'dataclasses_json'
+  'dataclasses_json',
+  'crccheck'
 ]
 
 [project.urls]
