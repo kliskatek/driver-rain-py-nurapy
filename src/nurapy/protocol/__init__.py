@@ -3,7 +3,7 @@ from typing import List, Any
 
 from crccheck.crc import Crc16Ibm3740
 
-from .command_codes import CommandCode
+from .command import CommandCode
 
 
 class Packet:

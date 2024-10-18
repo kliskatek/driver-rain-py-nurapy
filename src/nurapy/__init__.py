@@ -66,3 +66,23 @@ class NurAPY:
         packet = Packet(command_code=CommandCode.PING, args=[0x01, 0x00, 0x00, 0x00])
         response = self._execute_command(packet)
         return response
+
+    def reset(self):
+        packet = Packet(command_code=CommandCode.RESET, args=[])
+        response = self._execute_command(packet)
+        return response
+
+    def get_mode(self):
+        packet = Packet(command_code=CommandCode.GET_MODE, args=[])
+        response = self._execute_command(packet)
+        return response
+
+    def get_reader_info(self):
+        packet = Packet(command_code=CommandCode.GET_READER_INFO, args=[])
+        response = self._execute_command(packet)
+        return response
+
+    def get_device_capabilities(self):
+        packet = Packet(command_code=CommandCode.GET_DEVICE_CAPABILITIES, args=[])
+        response = self._execute_command(packet)
+        return response

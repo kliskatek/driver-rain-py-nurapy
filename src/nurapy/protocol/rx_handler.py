@@ -4,7 +4,10 @@ import struct
 import time
 
 from . import Packet
-from .header_flag_codes import HeaderFlagCodes
+from .command.get_device_capabilities import parse_get_device_capabilities_response
+from .command.get_mode import parse_get_mode_response
+from .command import HeaderFlagCodes
+from .command.get_reader_info import parse_get_reader_info_response
 from .. import CommandCode
 
 logger = logging.getLogger(__name__)
@@ -75,14 +78,35 @@ class RxHandler:
             logger.error(e)
 
     def _process_response(self, command: CommandCode, payload: bytearray):
+        status = payload[0]
+        if status != 0:
+            logger.error('Command failed')
+            self.response_queue.put(False)
+            return
+        payload = payload[1:]
         if command is CommandCode.PING:
             self.response_queue.put(True)
+            return
+        if command is CommandCode.RESET:
+            self.response_queue.put(True)
+            return
+        if command is CommandCode.GET_MODE:
+            self.response_queue.put(parse_get_mode_response(payload))
+            return
+        if command is CommandCode.GET_READER_INFO:
+            self.response_queue.put(parse_get_reader_info_response(payload))
+            return
+        if command is CommandCode.GET_DEVICE_CAPABILITIES:
+            self.response_queue.put(parse_get_device_capabilities_response(payload))
+            return
 
     def _process_notification(self, command: CommandCode, payload: bytearray):
-        pass
+        logger.debug(command)
+        logger.debug(payload.hex())
 
     def _process_inventory_read_notification(self, command: CommandCode, payload: bytearray):
-        pass
+        logger.debug(command)
+        logger.debug(payload.hex())
 
     def get_response(self):
         while self.response_queue.empty():
