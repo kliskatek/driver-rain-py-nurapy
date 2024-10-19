@@ -2,12 +2,16 @@ import logging
 import queue
 import struct
 import time
+from typing import Callable, Any
 
 from . import Packet
 from .command.get_device_capabilities import parse_get_device_capabilities_response
+from .command.get_id_buffer import parse_get_id_buffer_response
+from .command.get_id_buffer_meta import parse_get_id_buffer_meta_response
 from .command.get_mode import parse_get_mode_response
 from .command import HeaderFlagCodes
 from .command.inventory import parse_inventory_response
+from .command.inventory_stream import parse_inventory_stream_notification
 from .command.module_setup import parse_module_setup_response
 from .command.get_reader_info import parse_get_reader_info_response
 from .. import CommandCode
@@ -20,11 +24,10 @@ class RxHandler:
     def __init__(self):
         self.buffer = bytearray()
         self.response_queue = queue.Queue()
-        self.notification_queue = queue.Queue()
-        self.inventory_read_notification_queue = queue.Queue()
+        self.notification_callback = None
 
-    def set_notification_callback(self, callback):
-        pass
+    def set_notification_callback(self, callback: Callable[[Any], None]) -> None:
+        self.notification_callback = callback
 
     def append_data(self, data):
         if data is not None:
@@ -50,7 +53,7 @@ class RxHandler:
                     del self.buffer[0]
                 else:
                     payload_len = struct.unpack('<H', self.buffer[1:3])[0]
-                    message_type = HeaderFlagCodes(struct.unpack('<H', self.buffer[3:5])[0])
+                    header_flags = struct.unpack('<H', self.buffer[3:5])[0]
                     # Check if Full packet available
                     if len(self.buffer) > 5 + payload_len:
                         # Check CRC
@@ -64,12 +67,10 @@ class RxHandler:
                             payload = self.buffer[7:7 + payload_len - 3]
 
                             # Process message
-                            if message_type is HeaderFlagCodes.RESPONSE:
+                            if header_flags == HeaderFlagCodes.RESPONSE.value:
                                 self._process_response(command, payload)
-                            if message_type is HeaderFlagCodes.NOTIFICATION:
+                            elif header_flags & HeaderFlagCodes.NOTIFICATION.value:
                                 self._process_notification(command, payload)
-                            if message_type is HeaderFlagCodes.INVENTORY_READ_NOTIFICATION:
-                                self._process_inventory_read_notification(command, payload)
 
                         # Remove processed data
                         del self.buffer[0:8 + payload_len]
@@ -82,6 +83,7 @@ class RxHandler:
     def _process_response(self, command: CommandCode, payload: bytearray):
         status = payload[0]
         if status != 0:
+            # TODO: add error messages
             logger.error('Command failed')
             self.response_queue.put(False)
             return
@@ -110,10 +112,31 @@ class RxHandler:
         if command is CommandCode.SIMPLE_INVENTORY:
             self.response_queue.put(parse_inventory_response(payload))
             return
+        if command is CommandCode.GET_ID_BUFFER:
+            self.response_queue.put(parse_get_id_buffer_response(payload))
+            return
+        if command is CommandCode.GET_ID_BUFFER_META:
+            self.response_queue.put(parse_get_id_buffer_meta_response(payload))
+            return
+        if command is CommandCode.CLEAR_ID_BUFFER:
+            self.response_queue.put(True)
+            return
+        if command is CommandCode.INVENTORY_STREAM:
+            self.response_queue.put(True)
+            return
 
     def _process_notification(self, command: CommandCode, payload: bytearray):
-        logger.debug(command)
-        logger.debug(payload.hex())
+        if self.notification_callback is not None:
+            status = payload[0]
+            if status != 0:
+                # TODO: add error messages
+                logger.error('Notification error')
+                self.response_queue.put(False)
+                return
+            payload = payload[1:]
+            if command is CommandCode.NOTIFICATION_INVENTORY:
+                self.notification_callback(parse_inventory_stream_notification(payload))
+                return
 
     def _process_inventory_read_notification(self, command: CommandCode, payload: bytearray):
         logger.debug(command)

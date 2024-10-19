@@ -7,6 +7,10 @@ from typing import Callable, Any, List
 
 from .protocol import Packet, CommandCode
 from .protocol.command import to_uint16_bytes, to_uint8_bytes
+from .protocol.command.get_device_capabilities import NurDeviceCaps
+from .protocol.command.get_mode import Mode
+from .protocol.command.get_reader_info import NurReaderInfo
+from .protocol.command.inventory import InventoryResponse
 from .protocol.command.module_setup import ModuleSetup, ModuleSetupFlags, populate_module_setup_args
 from .protocol.rx_handler import RxHandler
 from .transport.serial import SerialPort
@@ -50,7 +54,7 @@ class NurAPY:
             logger.warning(e)
             return False
 
-    def _execute_command(self, command_packet: Packet):
+    def _execute_command(self, command_packet: Packet, block=True):
         if not self.transport.is_connected():
             if self.connection_string is None:
                 logger.info('Transport is disconnected.')
@@ -61,45 +65,46 @@ class NurAPY:
 
         logger.info('TX -> ' + command_packet.get_command_code().name)
         self.transport.write(command_packet.bytes())
-        try:
-            response = self._rx_handler.get_response()
-            logger.info('RX <- ' + str(response))
-            return response
-        except TimeoutError:
-            logger.info('Timeout executing ' + command_packet.get_command_code().name)
-            return None
+        if block:
+            try:
+                response = self._rx_handler.get_response()
+                logger.info('RX <- ' + str(response))
+                return response
+            except TimeoutError:
+                logger.info('Timeout executing ' + command_packet.get_command_code().name)
+                return None
 
-    def ping(self):
+    def ping(self) -> bool:
         packet = Packet(command_code=CommandCode.PING, args=[0x01, 0x00, 0x00, 0x00])
         response = self._execute_command(packet)
         return response
 
-    def reset(self):
+    def reset(self) -> bool:
         packet = Packet(command_code=CommandCode.RESET, args=[])
         response = self._execute_command(packet)
         return response
 
-    def restart(self):
+    def restart(self) -> bool:
         packet = Packet(command_code=CommandCode.RESTART, args=[])
         response = self._execute_command(packet)
         return response
 
-    def get_mode(self):
+    def get_mode(self) -> Mode:
         packet = Packet(command_code=CommandCode.GET_MODE, args=[])
         response = self._execute_command(packet)
         return response
 
-    def get_reader_info(self):
+    def get_reader_info(self) -> NurReaderInfo:
         packet = Packet(command_code=CommandCode.GET_READER_INFO, args=[])
         response = self._execute_command(packet)
         return response
 
-    def get_device_capabilities(self):
+    def get_device_capabilities(self) -> NurDeviceCaps:
         packet = Packet(command_code=CommandCode.GET_DEVICE_CAPABILITIES, args=[])
         response = self._execute_command(packet)
         return response
 
-    def get_module_setup(self, setup_flags: List[ModuleSetupFlags]):
+    def get_module_setup(self, setup_flags: List[ModuleSetupFlags]) -> ModuleSetup:
         combined_module_setup_flags = 0
         for setup_flag in setup_flags:
             combined_module_setup_flags |= setup_flag.value
@@ -107,7 +112,7 @@ class NurAPY:
         response = self._execute_command(packet)
         return response
 
-    def set_module_setup(self, setup_flags: List[ModuleSetupFlags], module_setup: ModuleSetup):
+    def set_module_setup(self, setup_flags: List[ModuleSetupFlags], module_setup: ModuleSetup) -> ModuleSetup:
         combined_module_setup_flags = 0
         for setup_flag in setup_flags:
             combined_module_setup_flags |= setup_flag.value
@@ -116,7 +121,7 @@ class NurAPY:
         response = self._execute_command(packet)
         return response
 
-    def simple_inventory(self, q=None, session=None, rounds=None):
+    def simple_inventory(self, q=None, session=None, rounds=None) -> InventoryResponse:
         args = []
         if q is not None and session is not None:
             args.append(q)
@@ -124,5 +129,38 @@ class NurAPY:
             if rounds is not None:
                 args.append(to_uint8_bytes(rounds))
         packet = Packet(command_code=CommandCode.SIMPLE_INVENTORY, args=args)
+        response = self._execute_command(packet)
+        return response
+
+    def get_id_buffer(self, clear: bool = False):
+        command_code = CommandCode.GET_ID_BUFFER
+        args = []
+        if clear:
+            args.append(0x01)
+        packet = Packet(command_code=command_code, args=[])
+        response = self._execute_command(packet)
+        return response
+
+    def get_id_buffer_with_metadata(self, clear: bool = False):
+        command_code = CommandCode.GET_ID_BUFFER_META
+        args = []
+        if clear:
+            args.append(0x01)
+        packet = Packet(command_code=command_code, args=[])
+        response = self._execute_command(packet)
+        return response
+
+    def clear_id_buffer(self, block=True):
+        packet = Packet(command_code=CommandCode.CLEAR_ID_BUFFER, args=[])
+        response = self._execute_command(packet, block=block)
+        return response
+
+    def start_inventory_stream(self) -> bool:
+        packet = Packet(command_code=CommandCode.INVENTORY_STREAM, args=[0x00])
+        response = self._execute_command(packet)
+        return response
+
+    def stop_inventory_stream(self) -> bool:
+        packet = Packet(command_code=CommandCode.INVENTORY_STREAM, args=[])
         response = self._execute_command(packet)
         return response

@@ -13,11 +13,15 @@ class CommandCode(Enum):
     RESET = 3
     GET_MODE = 4
     CLEAR_ID_BUFFER = 5
+    GET_ID_BUFFER = 6
+    GET_ID_BUFFER_META = 7
     GET_READER_INFO = 9
     GET_DEVICE_CAPABILITIES = 0xB
     RESTART = 0x14
     GET_MODULE_SETUP = 0x22
     SIMPLE_INVENTORY = 0x31
+    INVENTORY_STREAM = 0x39
+    NOTIFICATION_INVENTORY = 0x82
 
 
 def extract_bytes(payload: bytearray, number_of_bytes: int) -> bytearray:
