@@ -8,9 +8,11 @@ from typing import Callable, Any, List
 from .protocol import Packet, CommandCode
 from .protocol.command import to_uint16_bytes, to_uint8_bytes
 from .protocol.command.get_device_capabilities import NurDeviceCaps
+from .protocol.command.get_id_buffer_meta import NurTagDataMeta
 from .protocol.command.get_mode import Mode
 from .protocol.command.get_reader_info import NurReaderInfo
 from .protocol.command.inventory import InventoryResponse
+from .protocol.command.inventory_stream import InventoryStreamNotification
 from .protocol.command.module_setup import ModuleSetup, ModuleSetupFlags, populate_module_setup_args
 from .protocol.rx_handler import RxHandler
 from .transport.serial import SerialPort
@@ -27,7 +29,8 @@ class NurAPY:
         if connection_string is not None:
             self.connect(connection_string)
 
-    def set_notification_callback(self, notification_callback: Callable[[Any], None]):
+    def set_notification_callback(self, notification_callback: Callable[[InventoryStreamNotification,
+                                                                         List[NurTagDataMeta]], None]):
         self._rx_handler.set_notification_callback(notification_callback)
 
     def connect(self, connection_string=None) -> bool:
@@ -54,7 +57,7 @@ class NurAPY:
             logger.warning(e)
             return False
 
-    def _execute_command(self, command_packet: Packet, block=True):
+    def _execute_command(self, command_packet: Packet):
         if not self.transport.is_connected():
             if self.connection_string is None:
                 logger.info('Transport is disconnected.')
@@ -65,14 +68,13 @@ class NurAPY:
 
         logger.info('TX -> ' + command_packet.get_command_code().name)
         self.transport.write(command_packet.bytes())
-        if block:
-            try:
-                response = self._rx_handler.get_response()
-                logger.info('RX <- ' + str(response))
-                return response
-            except TimeoutError:
-                logger.info('Timeout executing ' + command_packet.get_command_code().name)
-                return None
+        try:
+            response = self._rx_handler.get_response()
+            logger.info('RX <- ' + str(response))
+            return response
+        except TimeoutError:
+            logger.info('Timeout executing ' + command_packet.get_command_code().name)
+            return None
 
     def ping(self) -> bool:
         packet = Packet(command_code=CommandCode.PING, args=[0x01, 0x00, 0x00, 0x00])
@@ -150,9 +152,9 @@ class NurAPY:
         response = self._execute_command(packet)
         return response
 
-    def clear_id_buffer(self, block=True):
+    def clear_id_buffer(self):
         packet = Packet(command_code=CommandCode.CLEAR_ID_BUFFER, args=[])
-        response = self._execute_command(packet, block=block)
+        response = self._execute_command(packet)
         return response
 
     def start_inventory_stream(self) -> bool:

@@ -1,19 +1,22 @@
 import logging
 import time
+from typing import List
 
 from src.nurapy import NurAPY, ModuleSetupFlags, ModuleSetup
+from src.nurapy.protocol.command.get_id_buffer_meta import NurTagDataMeta
+from src.nurapy.protocol.command.inventory_stream import InventoryStreamNotification
 from src.nurapy.protocol.command.module_setup import ModuleSetupLinkFreq, ModuleSetupRxDec
 
 logging.basicConfig(level=logging.DEBUG)
 
-api = NurAPY('COM8')
-if not api.ping():
+reader = NurAPY('COM8')
+if not reader.ping():
     logging.error('Could not connect to NUR APY')
     exit()
-api.get_mode()
-reader_info = api.get_reader_info()
-device_caps = api.get_device_capabilities()
-setup = api.get_module_setup(setup_flags=[
+reader.get_mode()
+reader_info = reader.get_reader_info()
+device_caps = reader.get_device_capabilities()
+setup = reader.get_module_setup(setup_flags=[
     ModuleSetupFlags.LINKFREQ,
     ModuleSetupFlags.RXDEC,
     ModuleSetupFlags.TXLEVEL,
@@ -28,7 +31,7 @@ new_setup.rx_decoding = ModuleSetupRxDec.MILLER_4
 new_setup.tx_level = 0
 new_setup.antenna_mask = 1
 new_setup.selected_antenna = 0
-setup = api.set_module_setup(setup_flags=[
+setup = reader.set_module_setup(setup_flags=[
     ModuleSetupFlags.LINKFREQ,
     ModuleSetupFlags.RXDEC,
     ModuleSetupFlags.TXLEVEL,
@@ -36,27 +39,24 @@ setup = api.set_module_setup(setup_flags=[
     ModuleSetupFlags.SELECTEDANT
 ], module_setup=new_setup)
 
-inventory_response = api.simple_inventory(session=0, q=4, rounds=100)
+inventory_response = reader.simple_inventory()
 if inventory_response.tags_in_memory:
-    # Fetch read tags to tag buffer including metadata
-    tag_count = api.get_id_buffer_with_metadata(clear=True)
-
-    # Get data of read tags
-    #for idx in range(tag_count):
-    #tag_data = api.get_tag_data(idx=idx)
-
-# Clear tag buffer
-#api.clear_tags()
-api.clear_id_buffer()
+    tags = reader.get_id_buffer_with_metadata(clear=True)
+    logging.info(tags)
 
 
-def my_notification_callback(notification):
-    print(notification)
-    api.clear_id_buffer(block=False)
+def my_notification_callback(inventory_stream_notification: InventoryStreamNotification,
+                             tags: List[NurTagDataMeta]):
+    if inventory_stream_notification.stopped:
+        logging.info('Restarting inventory stream')
+        reader.start_inventory_stream()
+    for tag in tags:
+        logging.info(tag)
+    reader.clear_id_buffer()
 
 
-api.set_notification_callback(my_notification_callback)
-api.start_inventory_stream()
+reader.set_notification_callback(my_notification_callback)
+reader.start_inventory_stream()
+time.sleep(2)
 input()
-api.stop_inventory_stream()
-input()
+reader.stop_inventory_stream()

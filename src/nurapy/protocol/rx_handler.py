@@ -2,16 +2,17 @@ import logging
 import queue
 import struct
 import time
-from typing import Callable, Any
+from threading import Thread
+from typing import Callable, Any, List
 
 from . import Packet
 from .command.get_device_capabilities import parse_get_device_capabilities_response
 from .command.get_id_buffer import parse_get_id_buffer_response
-from .command.get_id_buffer_meta import parse_get_id_buffer_meta_response
+from .command.get_id_buffer_meta import parse_get_id_buffer_meta_response, NurTagDataMeta
 from .command.get_mode import parse_get_mode_response
 from .command import HeaderFlagCodes
 from .command.inventory import parse_inventory_response
-from .command.inventory_stream import parse_inventory_stream_notification
+from .command.inventory_stream import parse_inventory_stream_notification, InventoryStreamNotification
 from .command.module_setup import parse_module_setup_response
 from .command.get_reader_info import parse_get_reader_info_response
 from .. import CommandCode
@@ -24,10 +25,22 @@ class RxHandler:
     def __init__(self):
         self.buffer = bytearray()
         self.response_queue = queue.Queue()
+        self.notification_queue = queue.Queue()
         self.notification_callback = None
+        self._callback_thread = Thread(target=self._callback_thread_fxn, daemon=True, name='CallbackThread')
+        self._callback_thread.start()
 
-    def set_notification_callback(self, callback: Callable[[Any], None]) -> None:
+    def set_notification_callback(self, callback: Callable[[InventoryStreamNotification,
+                                                            List[NurTagDataMeta]], None]) -> None:
         self.notification_callback = callback
+
+    def _callback_thread_fxn(self) -> None:
+        while True:
+            if not self.notification_queue.empty():
+                [notification, tags] = self.notification_queue.get()
+                if self.notification_callback:
+                    self.notification_callback(notification, tags)
+            time.sleep(0.001)
 
     def append_data(self, data):
         if data is not None:
@@ -131,16 +144,11 @@ class RxHandler:
             if status != 0:
                 # TODO: add error messages
                 logger.error('Notification error')
-                self.response_queue.put(False)
                 return
             payload = payload[1:]
             if command is CommandCode.NOTIFICATION_INVENTORY:
-                self.notification_callback(parse_inventory_stream_notification(payload))
+                self.notification_queue.put(parse_inventory_stream_notification(payload))
                 return
-
-    def _process_inventory_read_notification(self, command: CommandCode, payload: bytearray):
-        logger.debug(command)
-        logger.debug(payload.hex())
 
     def get_response(self):
         while self.response_queue.empty():
