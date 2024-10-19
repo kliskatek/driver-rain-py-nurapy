@@ -3,7 +3,7 @@ from typing import List
 
 from dataclasses_json import dataclass_json
 
-from src.nurapy.protocol.command import extract_uint8, extract_int8, extract_uint16, extract_uint32
+from src.nurapy.protocol.command._helpers import extract_uint8, extract_int8, extract_uint16, extract_uint32
 
 
 @dataclass_json

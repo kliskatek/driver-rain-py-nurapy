@@ -58,5 +58,4 @@ def my_notification_callback(inventory_stream_notification: InventoryStreamNotif
 reader.set_notification_callback(my_notification_callback)
 reader.start_inventory_stream()
 time.sleep(2)
-input()
 reader.stop_inventory_stream()

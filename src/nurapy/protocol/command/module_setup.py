@@ -1,7 +1,7 @@
 import struct
 
-from src.nurapy.protocol.command import extract_uint32, extract_uint8, extract_uint16, extract_int8, to_uint8_bytes, \
-    to_uint32_bytes, to_uint16_bytes, to_int8_bytes
+from src.nurapy.protocol.command._helpers import (extract_uint32, extract_uint8, extract_uint16, extract_int8,
+                                                  to_uint8_bytes, to_uint32_bytes, to_uint16_bytes, to_int8_bytes)
 from dataclasses import dataclass
 from enum import Enum
 from typing import List
@@ -40,13 +40,15 @@ class ModuleSetupFlags(Enum):
     PERANTPOWER_EX = (1 << 27)  # antPowerEx field in struct NUR_MODULESETUP is valid */
     RXSENS = (1 << 28)  # rxSensitivity field in struct NUR_MODULESETUP is valid */
 
+    ALL = ((1 << 29) - 1)  # All setup flags in the structure. */
+
     # ADDED NUR2 7.0
     #RFPROFILE = (1 << 29)  # rfProfile field in struct NUR_MODULESETUP is valid */
 
     # ADDED NUR2 7.5, NanoNur 10.2
     #TO_SLEEP_TIME = (1 << 30)  # toSleepTime field in struct NUR_MODULESETUP is valid */
 
-    ALL = ((1 << 29) - 1)  # All setup flags in the structure. */
+    #ALL_NUR2 = ((1 << 31) - 1)  # All setup flags in the structure. */
 
 
 class ModuleSetupLinkFreq(Enum):

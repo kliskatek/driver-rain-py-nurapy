@@ -6,7 +6,7 @@ import struct
 from typing import Callable, Any, List
 
 from .protocol import Packet, CommandCode
-from .protocol.command import to_uint16_bytes, to_uint8_bytes
+from .protocol.command._helpers import to_uint16_bytes, to_uint8_bytes
 from .protocol.command.get_device_capabilities import NurDeviceCaps
 from .protocol.command.get_id_buffer_meta import NurTagDataMeta
 from .protocol.command.get_mode import Mode
@@ -73,7 +73,7 @@ class NurAPY:
             logger.info('RX <- ' + str(response))
             return response
         except TimeoutError:
-            logger.info('Timeout executing ' + command_packet.get_command_code().name)
+            logger.warning('Timeout executing ' + command_packet.get_command_code().name)
             return None
 
     def ping(self) -> bool:

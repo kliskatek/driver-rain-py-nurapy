@@ -3,14 +3,14 @@ import queue
 import struct
 import time
 from threading import Thread
-from typing import Callable, Any, List
+from typing import Callable, List
 
 from . import Packet
 from .command.get_device_capabilities import parse_get_device_capabilities_response
 from .command.get_id_buffer import parse_get_id_buffer_response
 from .command.get_id_buffer_meta import parse_get_id_buffer_meta_response, NurTagDataMeta
 from .command.get_mode import parse_get_mode_response
-from .command import HeaderFlagCodes
+from .command import HeaderFlagCodes, StatusCode
 from .command.inventory import parse_inventory_response
 from .command.inventory_stream import parse_inventory_stream_notification, InventoryStreamNotification
 from .command.module_setup import parse_module_setup_response
@@ -79,6 +79,12 @@ class RxHandler:
                             command = CommandCode(self.buffer[6])
                             payload = self.buffer[7:7 + payload_len - 3]
 
+                            status = StatusCode(payload[0])
+                            if status != StatusCode.SUCCESS:
+                                logger.error(status)
+                                return
+                            payload = payload[1:]
+
                             # Process message
                             if header_flags == HeaderFlagCodes.RESPONSE.value:
                                 self._process_response(command, payload)
@@ -94,13 +100,6 @@ class RxHandler:
             logger.error(e)
 
     def _process_response(self, command: CommandCode, payload: bytearray):
-        status = payload[0]
-        if status != 0:
-            # TODO: add error messages
-            logger.error('Command failed')
-            self.response_queue.put(False)
-            return
-        payload = payload[1:]
         if command is CommandCode.PING:
             self.response_queue.put(True)
             return
@@ -139,18 +138,14 @@ class RxHandler:
             return
 
     def _process_notification(self, command: CommandCode, payload: bytearray):
-        if self.notification_callback is not None:
-            status = payload[0]
-            if status != 0:
-                # TODO: add error messages
-                logger.error('Notification error')
-                return
-            payload = payload[1:]
-            if command is CommandCode.NOTIFICATION_INVENTORY:
-                self.notification_queue.put(parse_inventory_stream_notification(payload))
-                return
+        if command is CommandCode.NOTIFICATION_INVENTORY:
+            self.notification_queue.put(parse_inventory_stream_notification(payload))
+            return
 
-    def get_response(self):
+    def get_response(self, timeout=1):
+        start = time.monotonic()
         while self.response_queue.empty():
             time.sleep(0.001)
+            if time.monotonic() - start > timeout:
+                raise TimeoutError
         return self.response_queue.get()
