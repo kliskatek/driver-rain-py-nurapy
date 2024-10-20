@@ -5,13 +5,14 @@ build-backend = "hatchling.build"
 [project]
 name = "nurapy"
 dynamic = ["version"]
-description = ''
+description = 'Pure Python driver for NordicID UHF RFID readers'
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
 keywords = []
 authors = [
-  { name = "Iz2k", email = "ibon@zalbide.com" },
+  { name = "Ibon Zalbide", email = "ibon.zalbide@kliskatek.com" },
+  { name = "Aritz Alonso", email = "aritz.alonso@kliskatek.com" },
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -31,9 +32,9 @@ dependencies = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/unknown/nurapy#readme"
-Issues = "https://github.com/unknown/nurapy/issues"
-Source = "https://github.com/unknown/nurapy"
+Documentation = "https://github.com/kliskatek/driver-rain-py-nurapy#readme"
+Issues = "https://github.com/kliskatek/driver-rain-py-nurapy/issues"
+Source = "https://github.com/kliskatek/driver-rain-py-nurapy"
 
 [tool.hatch.version]
 path = "src/nurapy/__about__.py"

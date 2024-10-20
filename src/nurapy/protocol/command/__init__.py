@@ -10,6 +10,7 @@ class HeaderFlagCodes(Enum):
 
 class CommandCode(Enum):
     PING = 1
+    GIVE_ME_MORE = 2
     RESET = 3
     GET_MODE = 4
     CLEAR_ID_BUFFER = 5

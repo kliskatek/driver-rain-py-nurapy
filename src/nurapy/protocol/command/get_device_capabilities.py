@@ -3,7 +3,7 @@ from enum import Enum
 
 from dataclasses_json import dataclass_json
 
-from src.nurapy.protocol.command._helpers import extract_uint32, extract_int32, extract_uint16
+from ..._helpers import extract_uint32, extract_int32, extract_uint16
 
 
 class ReaderChipVersion(Enum):

@@ -1,7 +1,7 @@
 import struct
 
-from src.nurapy.protocol.command._helpers import (extract_uint32, extract_uint8, extract_uint16, extract_int8,
-                                                  to_uint8_bytes, to_uint32_bytes, to_uint16_bytes, to_int8_bytes)
+from ..._helpers import (extract_uint32, extract_uint8, extract_uint16, extract_int8,
+                                 to_uint8_bytes, to_uint32_bytes, to_uint16_bytes, to_int8_bytes)
 from dataclasses import dataclass
 from enum import Enum
 from typing import List

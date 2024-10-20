@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from dataclasses_json import dataclass_json
 
-from src.nurapy.protocol.command._helpers import extract_int16, extract_uint8
+from ..._helpers import extract_int16, extract_uint8
 
 
 @dataclass_json

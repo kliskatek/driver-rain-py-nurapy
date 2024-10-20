@@ -44,18 +44,21 @@ if inventory_response.tags_in_memory:
     tags = reader.get_id_buffer_with_metadata(clear=True)
     logging.info(tags)
 
-
+n_tags = 0
 def my_notification_callback(inventory_stream_notification: InventoryStreamNotification,
                              tags: List[NurTagDataMeta]):
+    global n_tags
     if inventory_stream_notification.stopped:
         logging.info('Restarting inventory stream')
         reader.start_inventory_stream()
     for tag in tags:
         logging.info(tag)
-    reader.clear_id_buffer()
+        n_tags += 1
+        print(n_tags)
+    reader.give_me_more()
 
 
 reader.set_notification_callback(my_notification_callback)
 reader.start_inventory_stream()
-time.sleep(2)
+input()
 reader.stop_inventory_stream()
