@@ -1,6 +1,3 @@
-# SPDX-FileCopyrightText: 2024-present Iz2k <ibon@zalbide.com>
-#
-# SPDX-License-Identifier: MIT
 import logging
 import struct
 from typing import Callable, List
@@ -36,7 +33,7 @@ class NurAPY:
     def connect(self, connection_string=None) -> bool:
         if connection_string:
             self.connection_string = connection_string
-        # TODO: Parse connection string to determine transport type
+        # TODO: Parse connection string to determine transport type (serial only for now)
         self.transport = SerialPort(read_callback=self._rx_handler.append_data)
         return self.transport.connect(connection_string)
 
@@ -57,7 +54,7 @@ class NurAPY:
             logger.warning(e)
             return False
 
-    def _execute_command(self, command_packet: Packet, wait_response: bool = True):
+    def _execute_command(self, command_packet: Packet, has_response: bool = True):
         if not self.transport.is_connected():
             if self.connection_string is None:
                 logger.info('Transport is disconnected.')
@@ -68,7 +65,7 @@ class NurAPY:
 
         logger.info('TX -> ' + command_packet.get_command_code().name)
         self.transport.write(command_packet.bytes())
-        if wait_response:
+        if has_response:
             try:
                 response = self._rx_handler.get_response()
                 logger.info('RX <- ' + str(response))
@@ -168,6 +165,6 @@ class NurAPY:
         response = self._execute_command(packet)
         return response
 
-    def give_me_more(self):
-        packet = Packet(command_code=CommandCode.GIVE_ME_MORE, args=[])
-        self._execute_command(packet, wait_response=False)
+    def clear_notified_tags(self):
+        packet = Packet(command_code=CommandCode.CLEAR_NOTIFIED_TAGS, args=[])
+        self._execute_command(packet, has_response=False)

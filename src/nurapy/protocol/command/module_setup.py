@@ -108,12 +108,14 @@ class ModuleSetupRxSens(Enum):
     LOW = 1
     HIGH = 2
 
-
+@dataclass_json
+@dataclass
 class NurRssiFilter:
     min: int = None
     max: int = None
 
-
+@dataclass_json
+@dataclass
 class NurAutoTuneSetup:
     mode: int = None
     threshold_dBm: int = None
