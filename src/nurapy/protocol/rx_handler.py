@@ -1,7 +1,6 @@
 import logging
 import queue
 import struct
-import time
 from threading import Thread
 from typing import Callable, List
 
@@ -36,11 +35,9 @@ class RxHandler:
 
     def _callback_thread_fxn(self) -> None:
         while True:
-            if not self.notification_queue.empty():
-                [notification, tags] = self.notification_queue.get()
-                if self.notification_callback:
-                    self.notification_callback(notification, tags)
-            time.sleep(0.001)
+            notification, tags = self.notification_queue.get()
+            if self.notification_callback:
+                self.notification_callback(notification, tags)
 
     def append_data(self, data):
         if data is not None:
@@ -143,9 +140,7 @@ class RxHandler:
             return
 
     def get_response(self, timeout=1):
-        start = time.monotonic()
-        while self.response_queue.empty():
-            time.sleep(0.001)
-            if time.monotonic() - start > timeout:
-                raise TimeoutError
-        return self.response_queue.get()
+        try:
+            return self.response_queue.get(timeout=timeout)
+        except queue.Empty:
+            raise TimeoutError
