@@ -133,20 +133,18 @@ class NurAPY:
         return response
 
     def get_id_buffer(self, clear: bool = False):
-        command_code = CommandCode.GET_ID_BUFFER
         args = []
         if clear:
             args.append(0x01)
-        packet = Packet(command_code=command_code, args=[])
+        packet = Packet(command_code=CommandCode.GET_ID_BUFFER, args=args)
         response = self._execute_command(packet)
         return response
 
     def get_id_buffer_with_metadata(self, clear: bool = False):
-        command_code = CommandCode.GET_ID_BUFFER_META
         args = []
         if clear:
             args.append(0x01)
-        packet = Packet(command_code=command_code, args=[])
+        packet = Packet(command_code=CommandCode.GET_ID_BUFFER_META, args=args)
         response = self._execute_command(packet)
         return response
 
