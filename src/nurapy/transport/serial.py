@@ -1,4 +1,5 @@
 import logging
+import time
 from threading import Thread
 
 import serial
@@ -14,8 +15,7 @@ class SerialPort:
             baudrate=115200,
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
-            bytesize=serial.EIGHTBITS,
-            timeout=0.01
+            bytesize=serial.EIGHTBITS
         )
         self._rx_thread = None
         self._rx_thread_run = False
@@ -77,5 +77,8 @@ class SerialPort:
         while self._rx_thread_run:
             if self.is_connected():
                 data = self._read()
-                if data and self.read_callback:
-                    self.read_callback(data)
+                if data is not None:
+                    if len(data) > 0:
+                        if self.read_callback:
+                            self.read_callback(data)
+            time.sleep(0.001)
