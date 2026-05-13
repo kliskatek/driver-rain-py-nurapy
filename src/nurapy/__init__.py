@@ -9,6 +9,7 @@ from .protocol.command.get_id_buffer_meta import NurTagDataMeta
 from .protocol.command.get_mode import Mode
 from .protocol.command.get_reader_info import NurReaderInfo
 from .protocol.command.inventory import InventoryResponse
+from .protocol.command.inv_read_config import IrBank, IrType, build_inv_read_config_payload
 from .protocol.command.inventory_stream import InventoryStreamNotification
 from .protocol.command.module_setup import ModuleSetup, ModuleSetupFlags, populate_module_setup_args
 from .protocol.rx_handler import RxHandler
@@ -166,3 +167,31 @@ class NurAPY:
     def clear_notified_tags(self):
         packet = Packet(command_code=CommandCode.CLEAR_NOTIFIED_TAGS, args=[])
         self._execute_command(packet, has_response=False)
+
+    def set_inventory_read_config(self, active: bool,
+                                  bank: IrBank = IrBank.USER,
+                                  word_address: int = 0,
+                                  word_length: int = 0,
+                                  ir_type: IrType = IrType.EPC_AND_DATA) -> bool:
+        """Configure embedded Read for subsequent inventories.
+
+        Uses NUR_CMD_INVENTORYREAD (0x41) — the opcode this firmware
+        accepts. NUR_CMD_INVREADCONFIG (0x23) is rejected as
+        INVALID_COMMAND on the M5e/L2-class module used here, but the
+        wire format of the parameters is identical, so we reuse the
+        same payload builder.
+
+        When `active=True`, every tag reported by the inventory stream
+        will carry the requested User/TID/EPC/Reserved-bank read
+        alongside its EPC (the notification arrives with
+        PACKET_FLAG_IRDATA set). Pass `active=False` to revert to plain
+        inventory.
+        """
+        payload = build_inv_read_config_payload(active, bank, word_address,
+                                                word_length, ir_type)
+        packet = Packet(command_code=CommandCode.INVENTORY_READ, args=list(payload))
+        return self._execute_command(packet)
+
+    def stop_all_cont(self) -> bool:
+        packet = Packet(command_code=CommandCode.STOP_ALL_CONT, args=[])
+        return self._execute_command(packet)

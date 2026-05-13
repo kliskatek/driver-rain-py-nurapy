@@ -5,7 +5,7 @@ from enum import Enum
 class HeaderFlagCodes(Enum):
     RESPONSE = 0x0000
     NOTIFICATION = 0x0001
-    INVENTORY_READ_NOTIFICATION = 0x0002
+    INVENTORY_READ_NOTIFICATION = 0x0002  # PACKET_FLAG_IRDATA
 
 
 class CommandCode(Enum):
@@ -18,10 +18,13 @@ class CommandCode(Enum):
     GET_ID_BUFFER_META = 7
     GET_READER_INFO = 9
     GET_DEVICE_CAPABILITIES = 0xB
+    STOP_ALL_CONT = 0x0E
     RESTART = 0x14
     GET_MODULE_SETUP = 0x22
+    INVREAD_CONFIG = 0x23   # Configure embedded Read (not supported by some FW)
     SIMPLE_INVENTORY = 0x31
     INVENTORY_STREAM = 0x39
+    INVENTORY_READ = 0x41   # Configure embedded Read for following inventories
     NOTIFICATION_INVENTORY = 0x82
 
 

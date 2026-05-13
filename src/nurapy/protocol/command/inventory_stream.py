@@ -15,11 +15,11 @@ class InventoryStreamNotification:
     last_q: int = None
 
 
-def parse_inventory_stream_notification(payload: bytearray):
+def parse_inventory_stream_notification(payload: bytearray, with_ir_data: bool = False):
     inventory_stream_notification = InventoryStreamNotification()
     inventory_stream_notification.stopped = bool(extract_uint8(payload))
     inventory_stream_notification.rounds = extract_uint8(payload)
     inventory_stream_notification.collisions = extract_int16(payload)
     inventory_stream_notification.last_q = extract_uint8(payload)
-    tag_data = parse_get_id_buffer_meta_response(payload)
+    tag_data = parse_get_id_buffer_meta_response(payload, with_ir_data=with_ir_data)
     return [inventory_stream_notification, tag_data]

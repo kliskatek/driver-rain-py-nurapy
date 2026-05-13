@@ -86,7 +86,12 @@ class RxHandler:
                             if header_flags == HeaderFlagCodes.RESPONSE.value:
                                 self._process_response(command, payload)
                             elif header_flags & HeaderFlagCodes.NOTIFICATION.value:
-                                self._process_notification(command, payload)
+                                ir_data = bool(header_flags &
+                                               HeaderFlagCodes.INVENTORY_READ_NOTIFICATION.value)
+                                logger.debug('notif cmd=%s flags=0x%04X ir=%s payload=%s',
+                                             command.name, header_flags, ir_data,
+                                             payload.hex().upper())
+                                self._process_notification(command, payload, ir_data)
 
                         # Remove processed data
                         del self.buffer[0:8 + payload_len]
@@ -133,10 +138,22 @@ class RxHandler:
         if command is CommandCode.INVENTORY_STREAM:
             self.response_queue.put(True)
             return
+        if command is CommandCode.INVREAD_CONFIG:
+            self.response_queue.put(True)
+            return
+        if command is CommandCode.INVENTORY_READ:
+            self.response_queue.put(True)
+            return
+        if command is CommandCode.STOP_ALL_CONT:
+            self.response_queue.put(True)
+            return
 
-    def _process_notification(self, command: CommandCode, payload: bytearray):
+    def _process_notification(self, command: CommandCode, payload: bytearray,
+                              ir_data: bool = False):
         if command is CommandCode.NOTIFICATION_INVENTORY:
-            self.notification_queue.put(parse_inventory_stream_notification(payload))
+            self.notification_queue.put(
+                parse_inventory_stream_notification(payload, with_ir_data=ir_data)
+            )
             return
 
     def get_response(self, timeout=1):
