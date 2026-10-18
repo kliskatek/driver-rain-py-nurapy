@@ -18,6 +18,8 @@ from .. import CommandCode
 
 logger = logging.getLogger(__name__)
 
+HEADER_SIZE = 6
+
 
 class RxHandler:
 
@@ -45,61 +47,99 @@ class RxHandler:
             self._try_parse_data()
 
     def _try_parse_data(self):
-        try:
+        # Packet layout (struct NUR_HEADER in NurProtocol.h):
+        #   start(1) payloadLen(2) flags(2) checksum(1) | cmd(1) status(1) data(...) crc(2)
+        # payloadLen counts cmd + status + data + crc, so a packet takes
+        # HEADER_SIZE + payloadLen bytes. Several packets can arrive in one
+        # serial read; every complete packet is consumed even if it cannot be
+        # parsed, otherwise it would block the buffer for good.
+        while True:
             # Discard data until PREAMBLE
             start = self.buffer.find(bytearray([Packet.START_BYTE]))
+            if start < 0:
+                self.buffer.clear()
+                return
             if start > 0:
                 logger.warning('Syching PREAMBLE.')
-                self.buffer = self.buffer[start:]
+                del self.buffer[:start]
 
             # Check if Header available
-            while len(self.buffer) > 5:
-                # Checksum validation
-                checksum_rx = self.buffer[5]
-                checksum_calc = Packet.checksum(self.buffer[0:5])
-                if checksum_calc != checksum_rx:
-                    logger.warning('Checksum mismatch')
-                    # Remove START_BYTE
-                    del self.buffer[0]
-                else:
-                    payload_len = struct.unpack('<H', self.buffer[1:3])[0]
-                    header_flags = struct.unpack('<H', self.buffer[3:5])[0]
-                    # Check if Full packet available
-                    if len(self.buffer) > 5 + payload_len:
-                        # Check CRC
-                        crc_rx = struct.unpack('<H', self.buffer[7 + payload_len - 3: 7 + payload_len])[0]
-                        crc_calc = Packet.crc16(self.buffer[6:7 + payload_len - 3])
-                        if crc_calc != crc_rx:
-                            logger.warning('CRC mismatch')
-                        else:
-                            # Extract data
-                            command = CommandCode(self.buffer[6])
-                            payload = self.buffer[7:7 + payload_len - 3]
+            if len(self.buffer) < HEADER_SIZE:
+                return
+            # Checksum validation
+            if Packet.checksum(self.buffer[0:5]) != self.buffer[5]:
+                logger.warning('Checksum mismatch')
+                # Remove START_BYTE
+                del self.buffer[0]
+                continue
+            payload_len = struct.unpack('<H', self.buffer[1:3])[0]
+            if payload_len < 3:
+                logger.warning('Invalid payload length %d', payload_len)
+                del self.buffer[0]
+                continue
+            packet_len = HEADER_SIZE + payload_len
+            # Check if Full packet available
+            if len(self.buffer) < packet_len:
+                return
+            packet = bytes(self.buffer[:packet_len])
+            # Remove processed data
+            del self.buffer[:packet_len]
 
-                            status = StatusCode(payload[0])
-                            if status != StatusCode.SUCCESS:
-                                logger.error(status)
-                                return
-                            payload = payload[1:]
+            # Check CRC
+            crc_rx = struct.unpack('<H', packet[-2:])[0]
+            if Packet.crc16(packet[HEADER_SIZE:-2]) != crc_rx:
+                logger.warning('CRC mismatch')
+                continue
+            try:
+                self._process_packet(packet)
+            except Exception as e:
+                logger.error('Error processing packet %s: %s', packet.hex().upper(), e)
 
-                            # Process message
-                            if header_flags == HeaderFlagCodes.RESPONSE.value:
-                                self._process_response(command, payload)
-                            elif header_flags & HeaderFlagCodes.NOTIFICATION.value:
-                                ir_data = bool(header_flags &
-                                               HeaderFlagCodes.INVENTORY_READ_NOTIFICATION.value)
-                                logger.debug('notif cmd=%s flags=0x%04X ir=%s payload=%s',
-                                             command.name, header_flags, ir_data,
-                                             payload.hex().upper())
-                                self._process_notification(command, payload, ir_data)
+    def _process_packet(self, packet: bytes):
+        header_flags = struct.unpack('<H', packet[3:5])[0]
+        command_value = packet[HEADER_SIZE]
+        body = bytearray(packet[HEADER_SIZE + 1:-2])
+        if not body:
+            logger.warning('Packet without status: %s', packet.hex().upper())
+            return
+        status_value = body[0]
+        payload = body[1:]
+        try:
+            command = CommandCode(command_value)
+        except ValueError:
+            command = None
 
-                        # Remove processed data
-                        del self.buffer[0:8 + payload_len]
-                    else:
-                        # Missing payload data
-                        break
-        except Exception as e:
-            logger.error(e)
+        # The high nibble of the flags is a sequence number and bit 2 asks
+        # for an ACK, so test the bits instead of comparing the whole word.
+        if header_flags & HeaderFlagCodes.NOTIFICATION.value:
+            ir_data = bool(header_flags & HeaderFlagCodes.INVENTORY_READ_NOTIFICATION.value)
+            logger.debug('notif cmd=0x%02X flags=0x%04X status=0x%02X ir=%s payload=%s',
+                         command_value, header_flags, status_value, ir_data, payload.hex().upper())
+            if command is not CommandCode.NOTIFICATION_INVENTORY:
+                logger.debug('Ignoring notification 0x%02X', command_value)
+                return
+            if status_value != StatusCode.SUCCESS.value:
+                # Still hand it over without tags: the host ACKs every
+                # inventory notification and restarts a stopped stream.
+                logger.warning('Inventory notification with status 0x%02X', status_value)
+                notification = InventoryStreamNotification(stopped=bool(payload[0]) if payload else False)
+                self.notification_queue.put([notification, []])
+                return
+            self._process_notification(command, payload, ir_data)
+            return
+
+        if status_value != StatusCode.SUCCESS.value:
+            try:
+                logger.error('%s: %s', command.name if command else hex(command_value), StatusCode(status_value).name)
+            except ValueError:
+                logger.error('%s: status 0x%02X', command.name if command else hex(command_value), status_value)
+            # Unblock the waiting command instead of letting it time out.
+            self.response_queue.put(None)
+            return
+        if command is None:
+            logger.warning('Ignoring response to unknown command 0x%02X', command_value)
+            return
+        self._process_response(command, payload)
 
     def _process_response(self, command: CommandCode, payload: bytearray):
         if command is CommandCode.PING:
@@ -155,6 +195,13 @@ class RxHandler:
                 parse_inventory_stream_notification(payload, with_ir_data=ir_data)
             )
             return
+
+    def clear_responses(self):
+        while True:
+            try:
+                self.response_queue.get_nowait()
+            except queue.Empty:
+                return
 
     def get_response(self, timeout=1):
         try:

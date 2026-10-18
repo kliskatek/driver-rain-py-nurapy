@@ -65,6 +65,10 @@ class NurAPY:
                 return None
 
         logger.info('TX -> ' + command_packet.get_command_code().name)
+        if has_response:
+            # A response that arrived after its command timed out would be
+            # taken as the answer to this one.
+            self._rx_handler.clear_responses()
         self.transport.write(command_packet.bytes())
         if has_response:
             try:
