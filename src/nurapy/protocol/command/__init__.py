@@ -23,6 +23,8 @@ class CommandCode(Enum):
     GET_MODULE_SETUP = 0x22
     INVREAD_CONFIG = 0x23   # Configure embedded Read (not supported by some FW)
     SIMPLE_INVENTORY = 0x31
+    READ = 0x33             # Read tag memory (singulated)
+    WRITE = 0x34            # Write tag memory (singulated)
     INVENTORY_STREAM = 0x39
     INVENTORY_READ = 0x41   # Configure embedded Read for following inventories
     NOTIFICATION_INVENTORY = 0x82

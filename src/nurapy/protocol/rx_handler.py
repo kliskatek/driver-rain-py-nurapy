@@ -13,6 +13,7 @@ from .command import HeaderFlagCodes, StatusCode
 from .command.inventory import parse_inventory_response
 from .command.inventory_stream import parse_inventory_stream_notification, InventoryStreamNotification
 from .command.module_setup import parse_module_setup_response
+from .command.tag_access import NurError, NUR_ERROR_G2_TAG_RESP
 from .command.get_reader_info import parse_get_reader_info_response
 from .. import CommandCode
 
@@ -133,8 +134,13 @@ class RxHandler:
                 logger.error('%s: %s', command.name if command else hex(command_value), StatusCode(status_value).name)
             except ValueError:
                 logger.error('%s: status 0x%02X', command.name if command else hex(command_value), status_value)
-            # Unblock the waiting command instead of letting it time out.
-            self.response_queue.put(None)
+            # Unblock the waiting command instead of letting it time out. Tag access commands get the
+            # error itself, with the Gen2 error code of the tag when it answered with one.
+            if command in (CommandCode.READ, CommandCode.WRITE):
+                tag_error = payload[0] if status_value == NUR_ERROR_G2_TAG_RESP and payload else None
+                self.response_queue.put(NurError(status_value, tag_error))
+            else:
+                self.response_queue.put(None)
             return
         if command is None:
             logger.warning('Ignoring response to unknown command 0x%02X', command_value)
@@ -185,6 +191,12 @@ class RxHandler:
             self.response_queue.put(True)
             return
         if command is CommandCode.STOP_ALL_CONT:
+            self.response_queue.put(True)
+            return
+        if command is CommandCode.READ:
+            self.response_queue.put(bytes(payload))
+            return
+        if command is CommandCode.WRITE:
             self.response_queue.put(True)
             return
 

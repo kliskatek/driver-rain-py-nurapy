@@ -1,6 +1,6 @@
 import logging
 import struct
-from typing import Callable, List
+from typing import Callable, List, Optional, Union
 
 from .protocol import Packet, CommandCode
 from ._helpers import to_uint16_bytes, to_uint8_bytes
@@ -12,6 +12,7 @@ from .protocol.command.inventory import InventoryResponse
 from .protocol.command.inv_read_config import IrBank, IrType, build_inv_read_config_payload
 from .protocol.command.inventory_stream import InventoryStreamNotification
 from .protocol.command.module_setup import ModuleSetup, ModuleSetupFlags, populate_module_setup_args
+from .protocol.command.tag_access import Bank, NurError, build_read_payload, build_write_payload
 from .protocol.rx_handler import RxHandler
 from .transport.serial import SerialPort
 
@@ -55,7 +56,7 @@ class NurAPY:
             logger.warning(e)
             return False
 
-    def _execute_command(self, command_packet: Packet, has_response: bool = True):
+    def _execute_command(self, command_packet: Packet, has_response: bool = True, timeout: float = 1):
         if not self.transport.is_connected():
             if self.connection_string is None:
                 logger.info('Transport is disconnected.')
@@ -72,7 +73,7 @@ class NurAPY:
         self.transport.write(command_packet.bytes())
         if has_response:
             try:
-                response = self._rx_handler.get_response()
+                response = self._rx_handler.get_response(timeout=timeout)
                 logger.info('RX <- ' + str(response))
                 return response
             except TimeoutError:
@@ -195,6 +196,27 @@ class NurAPY:
                                                 word_length, ir_type)
         packet = Packet(command_code=CommandCode.INVENTORY_READ, args=list(payload))
         return self._execute_command(packet)
+
+    def read_tag(self, bank: Bank, word_address: int, word_count: int,
+                 epc: Optional[bytes] = None, password: Optional[int] = None) -> Union[bytes, NurError, None]:
+        """Reads `word_count` words of `bank` from `word_address` (NUR_CMD_READ).
+
+        With `epc` the reader singulates that tag (Select on its EPC); without it, it reads the first tag that
+        answers. Returns the data, a NurError (falsy) if the reader or the tag refused, or None on timeout.
+        """
+        payload = build_read_payload(bank, word_address, word_count, epc, password)
+        packet = Packet(command_code=CommandCode.READ, args=[payload])
+        return self._execute_command(packet, timeout=3)
+
+    def write_tag(self, bank: Bank, word_address: int, data: bytes,
+                  epc: Optional[bytes] = None, password: Optional[int] = None) -> Union[bool, NurError, None]:
+        """Writes `data` (whole words, tag order) to `bank` from `word_address` (NUR_CMD_WRITE).
+
+        Returns True, a NurError (falsy) if the reader or the tag refused, or None on timeout.
+        """
+        payload = build_write_payload(bank, word_address, data, epc, password)
+        packet = Packet(command_code=CommandCode.WRITE, args=[payload])
+        return self._execute_command(packet, timeout=3)
 
     def stop_all_cont(self) -> bool:
         packet = Packet(command_code=CommandCode.STOP_ALL_CONT, args=[])
